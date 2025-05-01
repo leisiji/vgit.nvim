@@ -3,7 +3,7 @@ local Diff = require('vgit.core.Diff')
 local Object = require('vgit.core.Object')
 local git_log = require('vgit.git.git_log')
 local GitFile = require('vgit.git.GitFile')
-local git_show = require('vgit.git.git_show')
+local git_show = require('vgit.libgit2.git_show')
 local git_hunks = require('vgit.git.git_hunks')
 local git_repo = require('vgit.libgit2.git_repo')
 
