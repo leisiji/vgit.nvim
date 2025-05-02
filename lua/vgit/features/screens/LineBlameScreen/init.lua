@@ -92,13 +92,13 @@ function LineBlameScreen:create()
     },
     {
       mode = 'n',
-      desc = 'Inspect commit',
+      desc = 'View commit msg',
       key = '<M-k>',
       handler = loop.coroutine(function()
         vim.lsp.util.open_floating_preview(
           blame.body,
           'markdown',
-          { border = 'rounded', focusable = true }
+          { border = 'rounded', focusable = true, zindex = 150 }
         )
       end),
     },
