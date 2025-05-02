@@ -54,8 +54,7 @@ end
 function LineBlameScreen:handle_on_enter(buffer, blame)
   vim.cmd('quit')
 
-  local filename = buffer:get_name()
-  vim.cmd(string.format('VGit project_commits_preview --filename=%s %s', filename, blame.commit_hash))
+  vim.cmd(string.format('VGit project_commits_preview %s', blame.commit_hash))
 end
 
 function LineBlameScreen:create()
@@ -82,7 +81,7 @@ function LineBlameScreen:create()
   self.line_blame_view:render()
   self.diff_view:render()
 
-  self.line_blame_view:set_keymap({
+  local keymaps = {
     {
       mode = 'n',
       desc = 'Inspect commit',
@@ -91,17 +90,22 @@ function LineBlameScreen:create()
         self:handle_on_enter(buffer, blame)
       end),
     },
-  })
-  self.diff_view:set_keymap({
     {
       mode = 'n',
       desc = 'Inspect commit',
-      key = '<enter>',
+      key = '<M-k>',
       handler = loop.coroutine(function()
-        self:handle_on_enter(buffer, blame)
+        vim.lsp.util.open_floating_preview(
+          blame.body,
+          'markdown',
+          { border = 'rounded', focusable = true }
+        )
       end),
     },
-  })
+  }
+
+  self.line_blame_view:set_keymap(keymaps)
+  self.diff_view:set_keymap(keymaps)
   self.diff_view:set_relative_lnum(blame.lnum)
 
   return true

@@ -55,7 +55,18 @@ function git_blame.get(reponame, filename, lnum)
 
   if err then return nil, err end
 
-  return GitBlame(blame_info)
+  local blame = GitBlame(blame_info)
+
+  blame.body = gitcli.run({
+    '-C',
+    reponame,
+    'show',
+    '-s',
+    '--pretty=format:%B',
+    blame.commit_hash,
+  })
+
+  return blame
 end
 
 return git_blame

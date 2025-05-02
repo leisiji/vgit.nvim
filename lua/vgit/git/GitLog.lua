@@ -13,12 +13,12 @@ function GitLog:constructor(line, revision_count)
   return {
     id = utils.math.uuid(),
     revision = revision,
-    commit_hash = log[1]:sub(2, #log[1]),
+    commit_hash = log[1],
     parent_hash = log[2],
     timestamp = log[3],
     author_name = log[4],
     author_email = log[5],
-    summary = log[6]:sub(1, #log[6] - 1),
+    summary = log[6],
   }
 end
 

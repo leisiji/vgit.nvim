@@ -3,7 +3,7 @@ local gitcli = require('vgit.git.gitcli')
 
 local git_stash = {}
 
-local git_log = { format = '--pretty=format:"%H\x1F%P\x1F%at\x1F%an\x1F%ae\x1F%s"' }
+local git_log = { format = '--pretty=format:%H\x1F%P\x1F%at\x1F%an\x1F%ae\x1F%s' }
 
 function git_stash.add(reponame)
   if not reponame then return nil, { 'reponame is required' } end
