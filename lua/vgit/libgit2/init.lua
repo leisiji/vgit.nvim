@@ -73,6 +73,7 @@ function libgit2.cdefine()
     typedef struct git_commit git_commit;
     typedef struct git_tree_entry git_tree_entry;
     typedef struct git_blob git_blob;
+    typedef struct git_reference git_reference;
 
     void git_index_free(git_index *index);
     void git_repository_free(git_repository *repo);
@@ -110,6 +111,11 @@ function libgit2.cdefine()
     void git_blob_free(git_blob *blob);
     const char * git_blob_rawcontent(const git_blob *blob);
     git_object_size_t git_blob_rawsize(const git_blob *blob);
+
+    int git_repository_head(git_reference **out, git_repository *repo);
+    const git_oid *git_reference_target(const git_reference *ref);
+    int git_oid_fromstr(git_oid *out, const char *str);
+    void git_reference_free(git_reference *ref);
   ]])
 
   return true

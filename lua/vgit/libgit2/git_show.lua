@@ -20,6 +20,9 @@ function git_show.lines(reponame, filename, commit_hash)
   local len
   local index_ptr
   local index_entry
+  local head_ref
+  local oid_str
+  local target_oid
 
   local repo_ptr = ffi.new('git_repository*[1]')
   local ret = libgit2.cli.git_repository_open(repo_ptr, reponame)
@@ -33,15 +36,21 @@ function git_show.lines(reponame, filename, commit_hash)
     index_entry = libgit2.cli.git_index_get_bypath(index_ptr[0], filename, 0)
   end
 
-  if index_entry then
+  if index_entry ~= nil then
     oid = index_entry.id
   else
-    object_ptr = ffi.new('git_object*[1]')
-    ret = libgit2.cli.git_revparse_single(object_ptr, repo_ptr[0], commit_hash or 'HEAD')
-    if ret ~= 0 then goto OUT end
+    if commit_hash == nil or commit_hash == 'HEAD' then
+      head_ref = ffi.new('git_reference*[1]')
+      ret = libgit2.cli.git_repository_head(head_ref, repo_ptr[0])
+      if ret ~= 0 then goto OUT end
+
+      oid = libgit2.cli.git_reference_target(head_ref[0])
+    else
+      oid = ffi.new('git_oid')
+      libgit2.cli.git_oid_fromstr(oid, commit_hash)
+    end
 
     commit_ptr = ffi.new('git_commit*[1]')
-    oid = libgit2.cli.git_object_id(object_ptr[0])
     ret = libgit2.cli.git_commit_lookup(commit_ptr, repo_ptr[0], oid)
     if ret ~= 0 then goto OUT end
 
@@ -63,21 +72,20 @@ function git_show.lines(reponame, filename, commit_hash)
   data = libgit2.cli.git_blob_rawcontent(blob_ptr[0])
   len = libgit2.cli.git_blob_rawsize(blob_ptr[0])
   -- 10 = 0xa = "\n"
-  if len > 1 and data[len - 1] == 10 then
-    len = len - 1
-  end
+  if len > 1 and data[len - 1] == 10 then len = len - 1 end
   content = ffi.string(data, len)
 
   ::OUT::
-  if index_ptr and index_ptr[0] then libgit2.cli.git_index_free(index_ptr[0]) end
-  if blob_ptr and blob_ptr[0] then libgit2.cli.git_blob_free(blob_ptr[0]) end
-  if entry_ptr and entry_ptr[0] then libgit2.cli.git_tree_entry_free(entry_ptr[0]) end
+  if head_ref and head_ref[0] ~= nil then libgit2.cli.git_reference_free(head_ref[0]) end
+  if index_ptr and index_ptr[0] ~= nil then libgit2.cli.git_index_free(index_ptr[0]) end
+  if blob_ptr and blob_ptr[0] ~= nil then libgit2.cli.git_blob_free(blob_ptr[0]) end
+  if entry_ptr and entry_ptr[0] ~= nil then libgit2.cli.git_tree_entry_free(entry_ptr[0]) end
   if commit_tree_ptr and commit_tree_ptr[0] ~= nil then libgit2.cli.git_tree_free(commit_tree_ptr[0]) end
-  if commit_ptr and commit_ptr[0] then libgit2.cli.git_commit_free(commit_ptr[0]) end
-  if object_ptr and object_ptr[0] then libgit2.cli.git_object_free(object_ptr[0]) end
+  if commit_ptr and commit_ptr[0] ~= nil then libgit2.cli.git_commit_free(commit_ptr[0]) end
+  if object_ptr and object_ptr[0] ~= nil then libgit2.cli.git_object_free(object_ptr[0]) end
   libgit2.cli.git_repository_free(repo_ptr[0])
 
-  if ret ~= 0 then return libgit2.error() end
+  if ret ~= 0 or content == nil then return libgit2.error() end
   return vim.split(content, '\n')
 end
 
