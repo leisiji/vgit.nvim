@@ -62,6 +62,10 @@ function git_show.lines(reponame, filename, commit_hash)
 
   data = libgit2.cli.git_blob_rawcontent(blob_ptr[0])
   len = libgit2.cli.git_blob_rawsize(blob_ptr[0])
+  -- 10 = 0xa = "\n"
+  if len > 1 and data[len - 1] == 10 then
+    len = len - 1
+  end
   content = ffi.string(data, len)
 
   ::OUT::
@@ -74,7 +78,7 @@ function git_show.lines(reponame, filename, commit_hash)
   libgit2.cli.git_repository_free(repo_ptr[0])
 
   if ret ~= 0 then return libgit2.error() end
-  return vim.split(content, '\n', { trimempty = true })
+  return vim.split(content, '\n')
 end
 
 return git_show

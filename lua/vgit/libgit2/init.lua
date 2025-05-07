@@ -108,7 +108,7 @@ function libgit2.cdefine()
     git_object_t git_tree_entry_type(const git_tree_entry *entry);
     int git_blob_lookup(git_blob **blob, git_repository *repo, const git_oid *id);
     void git_blob_free(git_blob *blob);
-    const void * git_blob_rawcontent(const git_blob *blob);
+    const char * git_blob_rawcontent(const git_blob *blob);
     git_object_size_t git_blob_rawsize(const git_blob *blob);
   ]])
 
