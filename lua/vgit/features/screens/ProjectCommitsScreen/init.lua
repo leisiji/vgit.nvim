@@ -169,6 +169,30 @@ function ProjectCommitsScreen:create(args)
   })
   self.status_list_view:render()
 
+  local keymaps = {
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        local jump = false
+        ::AGAIN::
+        for _, component in pairs(self.scene.components) do
+          local win = component.window.win_id
+          if jump then
+            vim.api.nvim_set_current_win(win)
+            return
+          end
+          if vim.api.nvim_get_current_win() == win then jump = true end
+        end
+        if jump then goto AGAIN end
+      end),
+    },
+  }
+
+  self.status_list_view:set_keymap(keymaps)
+  self.diff_view:set_keymap(keymaps)
+
   return true
 end
 
