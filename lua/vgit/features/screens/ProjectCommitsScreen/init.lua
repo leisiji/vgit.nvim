@@ -93,7 +93,7 @@ function ProjectCommitsScreen:open_file()
       return
     end
 
-    local reponame = git_repo.discover()
+    local reponame = git_repo.discover(filename)
     local lines, lines_err = git_show.lines(reponame, filename, commit_hash)
     loop.free_textlock()
 

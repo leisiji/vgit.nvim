@@ -5,15 +5,6 @@ local gitcli = {}
 gitcli.run = loop.suspend(function(args, opts, callback)
   opts = opts or {}
 
-  local default_args = {
-    '--no-pager',
-    '--no-optional-locks',
-    '--literal-pathspecs',
-    '-c',
-    'gc.auto=0', -- Disable auto-packing which emits messages to stderr
-  }
-  args = vim.list_extend(default_args, args)
-
   local Job = require('plenary.job')
   Job:new({
     command = 'git',
