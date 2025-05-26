@@ -408,6 +408,14 @@ function ProjectDiffScreen:setup_list_keymaps()
         self:reset_all()
       end),
     },
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
+      end),
+    },
   })
 end
 
@@ -486,6 +494,14 @@ function ProjectDiffScreen:setup_diff_keymaps()
       },
       handler = loop.coroutine(function()
         self:enter_view()
+      end),
+    },
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
       end),
     },
   })

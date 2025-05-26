@@ -61,4 +61,19 @@ function Scene:destroy()
   return self
 end
 
+function Scene:jump()
+  local jump = false
+  local components = self:get_components()
+  ::AGAIN::
+  for _, component in pairs(components) do
+    local win = component.window.win_id
+    if jump then
+      vim.api.nvim_set_current_win(win)
+      return
+    end
+    if vim.api.nvim_get_current_win() == win then jump = true end
+  end
+  if jump then goto AGAIN end
+end
+
 return Scene
