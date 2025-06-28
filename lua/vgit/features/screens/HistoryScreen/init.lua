@@ -109,6 +109,20 @@ function HistoryScreen:create()
 
   self.blame_list_view:render()
 
+  local keymaps = {
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
+      end),
+    },
+  }
+
+  self.blame_list_view:set_keymap(keymaps)
+  self.diff_view:set_keymap(keymaps)
+
   return true
 end
 
