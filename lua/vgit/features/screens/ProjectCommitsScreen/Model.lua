@@ -3,9 +3,9 @@ local Diff = require('vgit.core.Diff')
 local utils = require('vgit.core.utils')
 local Object = require('vgit.core.Object')
 local git_log = require('vgit.git.git_log')
-local git_repo = require('vgit.git.git_repo')
-local git_show = require('vgit.git.git_show')
+local git_show = require('vgit.libgit2.git_show')
 local git_hunks = require('vgit.git.git_hunks')
+local git_repo = require('vgit.libgit2.git_repo')
 local git_status = require('vgit.git.git_status')
 
 local Model = Object:extend()
@@ -19,6 +19,7 @@ function Model:constructor(opts)
       statuses = {},
       entries = nil,
       layout_type = opts.layout_type or 'unified',
+      repo = nil,
     },
   }
 end
@@ -30,6 +31,7 @@ function Model:reset()
     statuses = {},
     entries = nil,
     layout_type = self.state.layout_type,
+    repo = nil,
   }
 end
 
@@ -46,7 +48,12 @@ function Model:fetch(commits, opts)
   if not git_repo.exists() then return nil, { 'Project has no .git folder' } end
 
   local entries = {}
-  local reponame = git_repo.discover()
+  local Buffer = require('vgit.core.Buffer')
+  local buffer = Buffer(0)
+  local filename = buffer:get_name()
+
+  local reponame = git_repo.discover(filename)
+  self.state.repo = reponame
 
   for i = 1, #commits do
     local commit = commits[i]
@@ -73,7 +80,7 @@ function Model:fetch(commits, opts)
         self.state.statuses[id] = entry
 
         return entry
-      end)
+      end),
     }
   end
 
@@ -118,7 +125,7 @@ function Model:get_diff()
   if self.state.diffs[id] then return self.state.diffs[id] end
 
   local is_deleted = status:has_either('DD')
-  local reponame = git_repo.discover()
+  local reponame = self.state.repo
   local lines_err, lines
   if is_deleted then
     lines, lines_err = git_show.lines(reponame, filename, parent_hash)

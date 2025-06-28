@@ -4,8 +4,8 @@ local utils = require('vgit.core.utils')
 local Object = require('vgit.core.Object')
 local console = require('vgit.core.console')
 local DiffView = require('vgit.ui.views.DiffView')
+local KeyHelpPopup = require('vgit.ui.popups.KeyHelpPopup')
 local StatusListView = require('vgit.ui.views.StatusListView')
-local KeyHelpBarView = require('vgit.ui.views.KeyHelpBarView')
 local Model = require('vgit.features.screens.ProjectStashScreen.Model')
 local project_stash_preview_setting = require('vgit.settings.project_stash_preview')
 
@@ -21,29 +21,14 @@ function ProjectStashScreen:constructor(opts)
     name = 'Stash Screen',
     scene = scene,
     model = model,
-    app_bar_view = KeyHelpBarView(scene, {
-      keymaps = function()
-        local keymaps = project_stash_preview_setting:get('keymaps')
-        return {
-          { 'Add stash',   keymaps['add'] },
-          { 'Apply stash', keymaps['apply'] },
-          { 'Pop stash',   keymaps['pop'] },
-          { 'Drop stash',  keymaps['drop'] },
-          { 'Clear stash', keymaps['clear'] },
-        }
-      end,
-    }),
     status_list_view = StatusListView(scene, {
       entries = function()
         return model:get_entries()
       end,
-    }, {
-      row = 1,
-      width = '25vw',
-    }, {
+    }, { width = '25vw' }, {
       elements = {
         header = false,
-        footer = false,
+        footer = true,
       },
       open_folds = false,
     }),
@@ -61,25 +46,36 @@ function ProjectStashScreen:constructor(opts)
         return model:get_diff()
       end,
     }, {
-      row = 1,
       col = '25vw',
       width = '75vw',
     }, {
       elements = {
         header = true,
-        footer = false,
+        footer = true,
       },
     }),
   }
 end
+
+function ProjectStashScreen:help()
+  KeyHelpPopup({
+    config = {
+      keymaps = project_stash_preview_setting:get('keymaps')
+    }
+  }):mount()
+end
+
+ProjectStashScreen.render_diff_view_debounced = loop.debounce_coroutine(function(self)
+  self.diff_view:render()
+  self.diff_view:move_to_hunk()
+end, 200)
 
 function ProjectStashScreen:handle_list_move(direction)
   local list_item = self.status_list_view:move(direction)
   if not list_item then return end
 
   self.model:set_entry_id(list_item.id)
-  self.diff_view:render()
-  self.diff_view:move_to_hunk()
+  self:render_diff_view_debounced()
 end
 
 function ProjectStashScreen:render()
@@ -120,15 +116,11 @@ function ProjectStashScreen:apply(stash_index)
 
   local has_conflict = false
   utils.list.each(result, function(line)
-    if line:lower():find('conflict') then
-      has_conflict = true
-    end
+    if line:lower():find('conflict') then has_conflict = true end
   end)
 
   local msg = 'Stash ' .. stash_index .. ' applied'
-  if has_conflict then
-    msg = msg .. ' with conflict'
-  end
+  if has_conflict then msg = msg .. ' with conflict' end
   console.info(msg)
 
   self:render()
@@ -149,15 +141,11 @@ function ProjectStashScreen:pop(stash_index)
 
   local has_conflict = false
   utils.list.each(result, function(line)
-    if line:lower():find('conflict') then
-      has_conflict = true
-    end
+    if line:lower():find('conflict') then has_conflict = true end
   end)
 
   local msg = 'Stash ' .. stash_index .. ' applied'
-  if has_conflict then
-    msg = msg .. ' with conflict'
-  end
+  if has_conflict then msg = msg .. ' with conflict' end
   console.info(msg)
 
   self:render()
@@ -282,11 +270,9 @@ function ProjectStashScreen:create(opts)
   end
 
   self.diff_view:define()
-  self.app_bar_view:define()
   self.status_list_view:define()
 
   self.diff_view:mount()
-  self.app_bar_view:mount()
   self.status_list_view:mount({
     event_handlers = {
       on_move = function()
@@ -295,9 +281,7 @@ function ProjectStashScreen:create(opts)
     },
   })
 
-  self.app_bar_view:render()
   self.status_list_view:render()
-  self.diff_view:render()
 
   self:setup_keymaps()
 

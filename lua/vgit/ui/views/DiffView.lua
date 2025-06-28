@@ -1,4 +1,3 @@
-local loop = require('vgit.core.loop')
 local utils = require('vgit.core.utils')
 local Object = require('vgit.core.Object')
 local console = require('vgit.core.console')
@@ -166,12 +165,10 @@ function DiffView:render_line_diff(component_type, line_changes, lnum)
 
   if change_type ~= 'void' then line_number_hl = main_signs[change_type] end
 
-  if sign_name then
-    component:place_extmark_sign({
-      col = lnum - 1,
-      name = sign_name,
-    })
-  end
+  if sign_name then component:place_extmark_sign({
+    col = lnum - 1,
+    name = sign_name,
+  }) end
 
   if change_type == 'void' then
     local text = string.rep(symbols_setting:get('void'), component.window:get_width())
@@ -210,11 +207,63 @@ function DiffView:render_diff(top, bot)
   end
 end
 
-function DiffView:render_unified_conflicts(conflicts)
-  local component = self.scene:get('current')
+function DiffView:render_diff_partially()
+  self.scene:get('current'):attach_to_renderer(function(top, bot)
+    self:render_diff(top, bot + 1)
+  end)
+end
 
-  utils.list.each(conflicts, function(conflict)
+function DiffView:render_folds()
+  local diff = self.props.diff()
+  local marks = diff.marks
 
+  local current_component = self.scene:get('current')
+  local line_count = current_component:get_line_count()
+
+  local folds = {}
+  local num_focus_lines = 7
+
+  for i = 1, #marks do
+    local previous_mark = marks[i - 1]
+    local mark = marks[i]
+    local next_mark = marks[i + 1]
+
+    -- We are at the top
+    if not previous_mark then
+      local top = num_focus_lines
+      local bot = mark.top - num_focus_lines
+      if top < bot then folds[#folds + 1] = { top = top, bot = bot } end
+    -- We are at the bottom
+    elseif not next_mark then
+      local top = mark.bot + num_focus_lines
+      local bot = line_count - 1
+      if top < bot then folds[#folds + 1] = { top = top, bot = bot } end
+    -- Middle ofcourse, fold everything on top and bot of hunks
+    else
+      local top = previous_mark.bot + num_focus_lines + 1
+      local bot = mark.top - num_focus_lines
+      if top < bot then folds[#folds + 1] = { top = top, bot = bot } end
+
+      top = mark.bot + num_focus_lines
+      bot = next_mark.top - num_focus_lines
+      if top < bot then folds[#folds + 1] = { top = top, bot = bot } end
+    end
+  end
+
+  if #folds == 0 then return end
+
+  current_component:call(function()
+    utils.list.each(folds, function(fold)
+      vim.cmd(string.format('%s,%sfold', fold.top, fold.bot))
+    end)
+  end)
+
+  if self.props.layout_type() ~= 'split' then return end
+
+  self.scene:get('previous'):call(function()
+    utils.list.each(folds, function(fold)
+      vim.cmd(string.format('%s,%sfold', fold.top, fold.bot))
+    end)
   end)
 end
 
@@ -231,6 +280,18 @@ function DiffView:clear_title()
     self.scene:get('previous'):clear_title()
   else
     self.scene:get('current'):clear_title()
+  end
+end
+
+function DiffView:clear_folds()
+  if self.props.layout_type() == 'split' then
+    self.scene:get('previous'):call(function()
+      vim.api.nvim_command("normal! zR")
+    end)
+  else
+    self.scene:get('current'):call(function()
+      vim.api.nvim_command("normal! zR")
+    end)
   end
 end
 
@@ -610,7 +671,6 @@ end
 
 function DiffView:move_to_hunk(mark_index, pos)
   if not pos then pos = 'top' end
-
   if not mark_index then mark_index = 1 end
 
   local diff = self.props.diff()
@@ -640,7 +700,6 @@ end
 
 function DiffView:render()
   local ok, msg = pcall(function()
-    loop.free_textlock()
     self:clear_extmarks()
 
     local diff = self.props.diff()
@@ -655,15 +714,14 @@ function DiffView:render()
       return
     end
 
-    self:reset_cursor()
-    self:render_title()
     self:render_filetype()
+    self:render_title()
     self:render_lines()
     self:render_line_numbers()
-    self:render_diff()
+    self:render_diff_partially()
   end)
 
-  if not ok then console.debug.error(msg) end
+   if not ok then console.debug.error(msg) end
 end
 
 return DiffView

@@ -7,8 +7,8 @@ local Object = require('vgit.core.Object')
 local Window = require('vgit.core.Window')
 local console = require('vgit.core.console')
 local DiffView = require('vgit.ui.views.DiffView')
+local KeyHelpPopup = require('vgit.ui.popups.KeyHelpPopup')
 local StatusListView = require('vgit.ui.views.StatusListView')
-local KeyHelpBarView = require('vgit.ui.views.KeyHelpBarView')
 local Model = require('vgit.features.screens.ProjectDiffScreen.Model')
 local project_diff_preview_setting = require('vgit.settings.project_diff_preview')
 
@@ -24,22 +24,6 @@ function ProjectDiffScreen:constructor(opts)
     name = 'Project Diff Screen',
     scene = scene,
     model = model,
-    app_bar_view = KeyHelpBarView(scene, {
-      keymaps = function()
-        local keymaps = project_diff_preview_setting:get('keymaps')
-        return {
-          { 'Stage',        keymaps['buffer_stage'] },
-          { 'Unstage',      keymaps['buffer_unstage'] },
-          { 'Reset',        keymaps['buffer_reset'] },
-          { 'Stage hunk',   keymaps['buffer_hunk_stage'] },
-          { 'Unstage hunk', keymaps['buffer_hunk_unstage'] },
-          { 'Stage all',    keymaps['stage_all'] },
-          { 'Unstage all',  keymaps['unstage_all'] },
-          { 'Reset all',    keymaps['reset_all'] },
-          { 'Commit',       keymaps['commit'] },
-        }
-      end,
-    }),
     diff_view = DiffView(scene, {
       layout_type = function()
         return model:get_layout_type()
@@ -54,29 +38,33 @@ function ProjectDiffScreen:constructor(opts)
         return model:get_diff()
       end,
     }, {
-      row = 1,
       col = '25vw',
       width = '75vw',
     }, {
       elements = {
         header = true,
-        footer = false,
+        footer = true,
       },
     }),
     status_list_view = StatusListView(scene, {
       entries = function()
         return model:get_entries()
       end,
-    }, {
-      row = 1,
-      width = '25vw',
-    }, {
+    }, { width = '25vw' }, {
       elements = {
         header = false,
-        footer = false,
+        footer = true,
       },
     }),
   }
+end
+
+function ProjectDiffScreen:help()
+  KeyHelpPopup({
+    config = {
+      keymaps = project_diff_preview_setting:get('keymaps')
+    }
+  }):mount()
 end
 
 function ProjectDiffScreen:hunk_up()
@@ -163,9 +151,7 @@ function ProjectDiffScreen:stage_file()
   self:render(function()
     local has_unstaged = false
     self.status_list_view:each_status(function(status)
-      if status:is_staged() then
-        has_unstaged = true
-      end
+      if status:is_staged() then has_unstaged = true end
     end)
 
     self:move_to(function(status)
@@ -191,9 +177,7 @@ function ProjectDiffScreen:unstage_file()
   self:render(function()
     local has_staged = false
     self.status_list_view:each_status(function(status)
-      if status:is_staged() then
-        has_staged = true
-      end
+      if status:is_staged() then has_staged = true end
     end)
 
     self:move_to(function(status)
@@ -246,7 +230,7 @@ function ProjectDiffScreen:reset_file()
 
   loop.free_textlock()
   local decision =
-      console.input(string.format('Are you sure you want to discard changes in %s? (y/N) ', filename)):lower()
+    console.input(string.format('Are you sure you want to discard changes in %s? (y/N) ', filename)):lower()
 
   if decision ~= 'yes' and decision ~= 'y' then return end
 
@@ -330,20 +314,33 @@ function ProjectDiffScreen:render(on_status_list_render)
   self.diff_view:move_to_hunk()
 end
 
+ProjectDiffScreen.render_diff_view_debounced = loop.debounce_coroutine(function(self)
+  self.diff_view:render()
+  self.diff_view:move_to_hunk()
+end, 200)
+
 function ProjectDiffScreen:handle_list_move()
   local list_item = self.status_list_view:move()
   if not list_item then return end
 
   self.model:set_entry_id(list_item.id)
-  self.diff_view:render()
-  self.diff_view:move_to_hunk()
+  self:render_diff_view_debounced()
 end
 
 function ProjectDiffScreen:focus_relative_buffer_entry(buffer)
   local filename = buffer:get_relative_name()
   if filename == '' then
-    self:move_to(function()
-      return true
+    local has_unstaged = false
+    self.status_list_view:each_status(function(_, entry_type)
+      if entry_type == 'unstaged' then has_unstaged = true end
+    end)
+    self:move_to(function(_, entry_type)
+      if has_unstaged and entry_type == 'unstaged' then
+        return true
+      elseif not has_unstaged then
+        return true
+      end
+      return false
     end)
     return
   end
@@ -411,6 +408,14 @@ function ProjectDiffScreen:setup_list_keymaps()
         self:reset_all()
       end),
     },
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
+      end),
+    },
   })
 end
 
@@ -423,72 +428,80 @@ function ProjectDiffScreen:setup_diff_keymaps()
       mapping = keymaps.buffer_hunk_stage,
       handler = loop.debounce_coroutine(function()
         self:stage_hunk()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.buffer_hunk_unstage,
       handler = loop.debounce_coroutine(function()
         self:unstage_hunk()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.buffer_reset,
       handler = loop.debounce_coroutine(function()
         self:reset_file()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.buffer_stage,
       handler = loop.debounce_coroutine(function()
         self:stage_file()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.buffer_unstage,
       handler = loop.debounce_coroutine(function()
         self:unstage_file()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.stage_all,
       handler = loop.debounce_coroutine(function()
         self:stage_all()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.unstage_all,
       handler = loop.debounce_coroutine(function()
         self:unstage_all()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.reset_all,
       handler = loop.debounce_coroutine(function()
         self:reset_all()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = keymaps.commit,
       handler = loop.debounce_coroutine(function()
         self:commit()
-      end, 15),
+      end, 200),
     },
     {
       mode = 'n',
       mapping = {
         key = '<enter>',
-        desc = 'Open buffer'
+        desc = 'Open buffer',
       },
       handler = loop.coroutine(function()
         self:enter_view()
+      end),
+    },
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
       end),
     },
   })
@@ -519,12 +532,10 @@ function ProjectDiffScreen:create()
     return false
   end
 
-  self.app_bar_view:define()
   self.diff_view:define()
   self.status_list_view:define()
 
   self.diff_view:mount()
-  self.app_bar_view:mount()
   self.status_list_view:mount({
     event_handlers = {
       on_enter = function()
@@ -536,8 +547,6 @@ function ProjectDiffScreen:create()
     },
   })
 
-  self.diff_view:render()
-  self.app_bar_view:render()
   self.status_list_view:render()
 
   self:setup_keymaps()

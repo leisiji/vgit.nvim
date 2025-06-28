@@ -2,7 +2,7 @@ local utils = require('vgit.core.utils')
 local GitLog = require('vgit.git.GitLog')
 local gitcli = require('vgit.git.gitcli')
 
-local git_log = { format = '--pretty=format:"%H\x1F%P\x1F%at\x1F%an\x1F%ae\x1F%s"' }
+local git_log = { format = '--pretty=format:%H\x1F%P\x1F%at\x1F%an\x1F%ae\x1F%s' }
 
 function git_log.get(reponame, commit)
   if not reponame then return nil, { 'reponame is required' } end

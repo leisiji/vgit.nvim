@@ -23,34 +23,34 @@ function git_hunks.live(reponame, original_lines, current_lines)
     return hunks, hunks_err
   end
 
-  local o_lines_str = ''
-  local c_lines_str = ''
+  local o_lines_tbl = {}
+  local c_lines_tbl = {}
   local num_lines = math.max(#original_lines, #current_lines)
 
   for i = 1, num_lines do
     local o_line = original_lines[i]
     local c_line = current_lines[i]
 
-    if o_line then o_lines_str = o_lines_str .. original_lines[i] .. '\n' end
-    if c_line then c_lines_str = c_lines_str .. current_lines[i] .. '\n' end
+    if o_line then o_lines_tbl[#o_lines_tbl + 1] = table.concat({ original_lines[i], '\n' }) end
+    if c_line then c_lines_tbl[#c_lines_tbl + 1] = table.concat({ current_lines[i], '\n' }) end
   end
 
   local live_hunks = {}
 
-  vim.diff(o_lines_str, c_lines_str, {
+  vim.diff(table.concat(o_lines_tbl), table.concat(c_lines_tbl), {
     on_hunk = function(start_o, count_o, start_c, count_c)
       local hunk = GitHunk({ { start_o, count_o }, { start_c, count_c } })
 
       if count_o > 0 then
         for i = start_o, start_o + count_o - 1 do
-          hunk.diff[#hunk.diff + 1] = '-' .. (original_lines[i] or '')
+          hunk.diff[#hunk.diff + 1] = table.concat({ '-', (original_lines[i] or '') })
           hunk.stat.removed = hunk.stat.removed + 1
         end
       end
 
       if count_c > 0 then
         for i = start_c, start_c + count_c - 1 do
-          hunk.diff[#hunk.diff + 1] = '+' .. (current_lines[i] or '')
+          hunk.diff[#hunk.diff + 1] = table.concat({ '+', (current_lines[i] or '') })
           hunk.stat.added = hunk.stat.added + 1
         end
       end

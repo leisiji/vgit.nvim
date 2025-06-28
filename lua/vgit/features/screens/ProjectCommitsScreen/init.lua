@@ -5,8 +5,8 @@ local Object = require('vgit.core.Object')
 local Buffer = require('vgit.core.Buffer')
 local Window = require('vgit.core.Window')
 local console = require('vgit.core.console')
-local git_repo = require('vgit.git.git_repo')
-local git_show = require('vgit.git.git_show')
+local git_show = require('vgit.libgit2.git_show')
+local git_repo = require('vgit.libgit2.git_repo')
 local DiffView = require('vgit.ui.views.DiffView')
 local StatusListView = require('vgit.ui.views.StatusListView')
 local Model = require('vgit.features.screens.ProjectCommitsScreen.Model')
@@ -67,13 +67,17 @@ function ProjectCommitsScreen:hunk_down()
   self.diff_view:next()
 end
 
+ProjectCommitsScreen.render_diff_view_debounced = loop.debounce_coroutine(function(self)
+  self.diff_view:render()
+  self.diff_view:move_to_hunk()
+end, 200)
+
 function ProjectCommitsScreen:handle_list_move(direction)
   local list_item = self.status_list_view:move(direction)
   if not list_item then return end
 
   self.model:set_entry_id(list_item.id)
-  self.diff_view:render()
-  self.diff_view:move_to_hunk()
+  self:render_diff_view_debounced()
 end
 
 function ProjectCommitsScreen:open_file()
@@ -89,7 +93,7 @@ function ProjectCommitsScreen:open_file()
       return
     end
 
-    local reponame = git_repo.discover()
+    local reponame = git_repo.discover(filename)
     local lines, lines_err = git_show.lines(reponame, filename, commit_hash)
     loop.free_textlock()
 
@@ -151,7 +155,6 @@ function ProjectCommitsScreen:create(args)
   loop.free_textlock()
   self.diff_view:define()
   self.diff_view:mount()
-  self.diff_view:render()
 
   self.status_list_view:define()
   self.status_list_view:mount({
@@ -165,6 +168,20 @@ function ProjectCommitsScreen:create(args)
     },
   })
   self.status_list_view:render()
+
+  local keymaps = {
+    {
+      mode = 'n',
+      desc = 'jump between status list view and diff view',
+      key = '<M-a>',
+      handler = loop.coroutine(function()
+        self.scene:jump()
+      end),
+    },
+  }
+
+  self.status_list_view:set_keymap(keymaps)
+  self.diff_view:set_keymap(keymaps)
 
   return true
 end
