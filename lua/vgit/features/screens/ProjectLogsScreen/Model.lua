@@ -61,7 +61,10 @@ end
 function Model:fetch()
   self:reset()
 
-  local reponame = git_repo.discover()
+  local Buffer = require('vgit.core.Buffer')
+  local buffer = Buffer(0)
+  local filename = buffer:get_name()
+  local reponame = git_repo.discover(filename)
   local pagination = {
     skip = 0,
     count = 100,
