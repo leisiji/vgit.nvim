@@ -22,7 +22,7 @@ git_buffer_store.register_events = loop.coroutine(function()
   if is_registered then return end
   is_registered = true
 
-  event.on({ 'BufRead', 'BufNew' }, function()
+  event.on({ 'BufRead', 'BufNew', 'TermLeave' }, function()
     local path = vim.api.nvim_buf_get_name(0)
     if vim.fn.filereadable(path) == 0 then
       return
