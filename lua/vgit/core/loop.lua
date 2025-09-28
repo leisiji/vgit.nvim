@@ -1,6 +1,7 @@
 local async = require('plenary.async.async')
 
 local loop = {}
+local timer = vim.loop.new_timer()
 
 loop.suspend = async.wrap
 
@@ -23,7 +24,6 @@ function loop.debounce(fn, ms, opts)
 
   local args, argc
   local cooldown = false
-  local timer = vim.loop.new_timer()
 
   return function(...)
     args = { ... }
