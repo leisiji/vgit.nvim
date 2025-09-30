@@ -1,7 +1,7 @@
 local async = require('plenary.async.async')
 
 local loop = {}
-local timer = vim.loop.new_timer()
+local global_timer = {}
 
 loop.suspend = async.wrap
 
@@ -19,30 +19,21 @@ end
 
 function loop.debounce(fn, ms, opts)
   opts = opts or {}
+  local key = tostring(fn)
 
-  local prolong = opts.prolong ~= nil and opts.prolong or true
+  if global_timer[key] == nil then
+    global_timer[key] = vim.loop.new_timer()
+  end
 
   local args, argc
-  local cooldown = false
+  local timer = global_timer[key]
 
   return function(...)
     args = { ... }
     argc = select('#', ...)
 
-    if not cooldown then
-      cooldown = true
-      fn(...)
-      timer:start(ms, 0, function()
-        cooldown = false
-      end)
-      return
-    end
-
-    if not prolong then return end
-
     timer:stop()
     timer:start(ms, 0, function()
-      cooldown = false
       fn(unpack(args, 1, argc))
     end)
   end
